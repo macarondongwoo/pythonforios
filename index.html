@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이폰 파이썬 에디터</title>
+    
+    <!-- CodeMirror 라이브러리 (자동 들여쓰기 및 모바일 친화적 에디터) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <!-- 자동 완성 및 괄호 닫기 등 보조 애드온 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        h2 {
+            font-size: 1.1rem;
+            margin: 5px 0 10px 0;
+            text-align: center;
+        }
+        .CodeMirror {
+            flex: 1;
+            font-size: 14px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            height: auto;
+        }
+        .button-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 12px 0;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+        }
+        .btn-check { background-color: #f39c12; }
+        .btn-run { background-color: #27ae60; }
+        .btn-save { background-color: #2980b9; }
+        
+        .output-container {
+            background-color: #2d2d2d;
+            border-radius: 8px;
+            padding: 10px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 13px;
+            border: 1px solid #444;
+        }
+        .output-title {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>📱 아이폰 파이썬 개발환경</h2>
+
+    <!-- 코드 작성 영역 -->
+    <textarea id="codeEditor"></textarea>
+
+    <!-- 버튼 그룹 -->
+    <div class="button-container">
+        <button class="btn-check" onclick="checkSyntax()">체크</button>
+        <button class="btn-run" onclick="runCode()">실행</button>
+        <button class="btn-save" onclick="saveFile()">저장</button>
+    </div>
+
+    <!-- 실행 결과 및 오류 출력 영역 -->
+    <div>
+        <div class="output-title">실행 및 검사 결과</div>
+        <div id="output" class="output-container">대기 중...</div>
+    </div>
+
+    <script>
+        // CodeMirror 에디터 초기화 (자동 들여쓰기, 괄호 자동 닫기 적용)
+        var editor = CodeMirror.fromTextArea(document.getElementById("codeEditor"), {
+            mode: "python",
+            theme: "dracula",
+            lineNumbers: true,
+            indentUnit: 4,
+            smartIndent: true,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            indentWithTabs: false
+        });
+
+        // 초기 샘플 코드
+        editor.setValue("# 파이썬 코드를 작성하세요\nprint('안녕하세요, 아이폰!')\n\nfor i in range(3):\n    print(i)");
+
+        // 1. 문법 오류 체크 기능 (간이 파이썬 문법 검증 및 서버 연동)
+        async function checkSyntax() {
+            const code = editor.getValue();
+            const outputDiv = document.getElementById("output");
+            outputDiv.style.color = "#f39c12";
+            outputDiv.innerText = "문법 검사 중...";
+
+            try {
+                // Piston API를 이용해 구문 검사 (실행 전 테스트)
+                let response = await fetch("https://emkc.org/api/v2/piston/execute", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        language: "python",
+                        version: "3.10.0",
+                        files: [{ content: code }]
+                    })
+                });
+                let result = await response.json();
+                
+                if (result.run && result.run.stderr) {
+                    outputDiv.style.color = "#e74c3c";
+                    outputDiv.innerText = "⚠️ 문법 오류 발견:\n" + result.run.stderr;
+                } else {
+                    outputDiv.style.color = "#2ecc71";
+                    outputDiv.innerText = "✨ 문법 오류가 발견되지 않았습니다!";
+                }
+            } catch (error) {
+                outputDiv.style.color = "#e74c3c";
+                outputDiv.innerText = "네트워크 오류로 검사하지 못했습니다.";
+            }
+        }
+
+        // 2. 외부 서버를 통한 코드 실행 기능 (아이폰 성능 제약 극복)
+        async function runCode() {
+            const code = editor.getValue();
+            const outputDiv = document.getElementById("output");
+            outputDiv.style.color = "#ffffff";
+            outputDiv.innerText = "실행 중...";
+
+            try {
+                let response = await fetch("https://emkc.org/api/v2/piston/execute", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        language: "python",
+                        version: "3.10.0",
+                        files: [{ content: code }]
+                    })
+                });
+                let result = await response.json();
+
+                if (result.run) {
+                    if (result.run.stderr) {
+                        outputDiv.style.color = "#e74c3c";
+                        outputDiv.innerText = result.run.stdout + "\n" + result.run.stderr;
+                    } else {
+                        outputDiv.style.color = "#2ecc71";
+                        outputDiv.innerText = result.run.stdout || "(출력 결과가 없습니다)";
+                    }
+                } else {
+                    outputDiv.style.color = "#e74c3c";
+                    outputDiv.innerText = "코드 실행 실패";
+                }
+            } catch (error) {
+                outputDiv.style.color = "#e74c3c";
+                outputDiv.innerText = "서버 연결에 실패했습니다.";
+            }
+        }
+
+        // 3. .py 파일 다운로드 기능
+        function saveFile() {
+            const code = editor.getValue();
+            const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "script.py";  // 다운로드될 파일명
+            document.body.appendChild(a);
+            a.click();
+            
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const outputDiv = document.getElementById("output");
+            outputDiv.style.color = "#3498db";
+            outputDiv.innerText = "💾 'script.py' 파일이 다운로드되었습니다.";
+        }
+    </script>
+</body>
+</html>
