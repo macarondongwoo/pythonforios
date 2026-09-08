@@ -53,9 +53,8 @@
             cursor: pointer;
             color: white;
         }
-        .btn-check { background-color: #f39c12; }
-        .btn-run { background-color: #27ae60; }
-        .btn-save { background-color: #2980b9; }
+        .btn-run { background-color: #27ae60; flex: 2; }
+        .btn-save { background-color: #2980b9; flex: 1; }
         
         .output-container {
             background-color: #2d2d2d;
@@ -66,6 +65,7 @@
             font-family: monospace;
             font-size: 13px;
             border: 1px solid #444;
+            white-space: pre-wrap;
         }
         .output-title {
             font-size: 12px;
@@ -78,20 +78,19 @@
 
     <h2>📱 아이폰 파이썬 개발환경</h2>
 
-    <!-- 코드 작성 영역 -->
+    <!-- 코드 작성 영역 (초기값 비워둠) -->
     <textarea id="codeEditor"></textarea>
 
-    <!-- 버튼 그룹 -->
+    <!-- 버튼 그룹 (체크 삭제, 실행과 저장만 배치) -->
     <div class="button-container">
-        <button class="btn-check" onclick="checkSyntax()">체크</button>
         <button class="btn-run" onclick="runCode()">실행</button>
-        <button class="btn-save" onclick="saveFile()">저장</button>
+        <button class="btn-save" onclick="saveFile()">저장 (.py)</button>
     </div>
 
-    <!-- 실행 결과 및 오류 출력 영역 -->
+    <!-- 실행 결과 출력 영역 -->
     <div>
-        <div class="output-title">실행 및 검사 결과</div>
-        <div id="output" class="output-container">대기 중...</div>
+        <div class="output-title">실행 결과</div>
+        <div id="output" class="output-container">코드를 입력하고 실행 버튼을 누르세요.</div>
     </div>
 
     <script>
@@ -107,50 +106,25 @@
             indentWithTabs: false
         });
 
-        // 초기 샘플 코드
-        editor.setValue("# 파이썬 코드를 작성하세요\nprint('안녕하세요, 아이폰!')\n\nfor i in range(3):\n    print(i)");
+        // 처음 들어왔을 때 빈 화면 유지 (예시 코드 제거 완료)
+        editor.setValue("");
 
-        // 1. 문법 오류 체크 기능 (간이 파이썬 문법 검증 및 서버 연동)
-        async function checkSyntax() {
-            const code = editor.getValue();
-            const outputDiv = document.getElementById("output");
-            outputDiv.style.color = "#f39c12";
-            outputDiv.innerText = "문법 검사 중...";
-
-            try {
-                // Piston API를 이용해 구문 검사 (실행 전 테스트)
-                let response = await fetch("https://emkc.org/api/v2/piston/execute", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        language: "python",
-                        version: "3.10.0",
-                        files: [{ content: code }]
-                    })
-                });
-                let result = await response.json();
-                
-                if (result.run && result.run.stderr) {
-                    outputDiv.style.color = "#e74c3c";
-                    outputDiv.innerText = "⚠️ 문법 오류 발견:\n" + result.run.stderr;
-                } else {
-                    outputDiv.style.color = "#2ecc71";
-                    outputDiv.innerText = "✨ 문법 오류가 발견되지 않았습니다!";
-                }
-            } catch (error) {
-                outputDiv.style.color = "#e74c3c";
-                outputDiv.innerText = "네트워크 오류로 검사하지 못했습니다.";
-            }
-        }
-
-        // 2. 외부 서버를 통한 코드 실행 기능 (아이폰 성능 제약 극복)
+        // 외부 API를 통한 파이썬 코드 실행 기능 (안정적인 엔드포인트 연동)
         async function runCode() {
             const code = editor.getValue();
             const outputDiv = document.getElementById("output");
+            
+            if (!code.trim()) {
+                outputDiv.style.color = "#f39c12";
+                outputDiv.innerText = "⚠️ 실행할 코드가 비어 있습니다.";
+                return;
+            }
+
             outputDiv.style.color = "#ffffff";
             outputDiv.innerText = "실행 중...";
 
             try {
+                // 오픈 소스 공개 실행 API (Judge0 / Piston 대체 호환 엔드포인트) 사용
                 let response = await fetch("https://emkc.org/api/v2/piston/execute", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -160,27 +134,35 @@
                         files: [{ content: code }]
                     })
                 });
+
+                if (!response.ok) {
+                    throw new Error("서버 응답 오류");
+                }
+
                 let result = await response.json();
 
                 if (result.run) {
-                    if (result.run.stderr) {
-                        outputDiv.style.color = "#e74c3c";
-                        outputDiv.innerText = result.run.stdout + "\n" + result.run.stderr;
+                    let outputText = result.run.stdout || "";
+                    let errorText = result.run.stderr || "";
+
+                    if (errorText) {
+                        outputDiv.style.color = "#e74c3c"; // 에러는 빨간색
+                        outputDiv.innerText = outputText + "\n" + errorText;
                     } else {
-                        outputDiv.style.color = "#2ecc71";
-                        outputDiv.innerText = result.run.stdout || "(출력 결과가 없습니다)";
+                        outputDiv.style.color = "#2ecc71"; // 성공은 초록색
+                        outputDiv.innerText = outputText || "(출력 결과가 없습니다)";
                     }
                 } else {
                     outputDiv.style.color = "#e74c3c";
-                    outputDiv.innerText = "코드 실행 실패";
+                    outputDiv.innerText = "실행 결과를 받아오지 못했습니다.";
                 }
             } catch (error) {
                 outputDiv.style.color = "#e74c3c";
-                outputDiv.innerText = "서버 연결에 실패했습니다.";
+                outputDiv.innerText = "⚠️ 실행 실패: 네트워크 연결을 확인하거나 잠시 후 다시 시도해 주세요.";
             }
         }
 
-        // 3. .py 파일 다운로드 기능
+        // .py 파일 다운로드 기능
         function saveFile() {
             const code = editor.getValue();
             const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
@@ -188,7 +170,7 @@
             
             const a = document.createElement("a");
             a.href = url;
-            a.download = "script.py";  // 다운로드될 파일명
+            a.download = "script.py";
             document.body.appendChild(a);
             a.click();
             
