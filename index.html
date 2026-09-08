@@ -43,7 +43,7 @@
             margin-bottom: 8px;
             height: auto;
         }
-        /* 입력값(Stdin) 작성 영역 스타일 */
+        /* 입력값(Stdin) 작성 영역 스타일 (textarea로 변경하여 엔터 가능) */
         .input-section {
             margin-bottom: 8px;
         }
@@ -54,14 +54,16 @@
         }
         #stdinInput {
             width: 100%;
-            height: 35px;
+            height: 50px;
             background-color: #2d2d2d;
             border: 1px solid #444;
             border-radius: 6px;
             color: #ffffff;
-            padding: 5px 8px;
+            padding: 6px 8px;
             font-size: 13px;
+            font-family: monospace;
             box-sizing: border-box;
+            resize: none;
         }
         .button-container {
             display: flex;
@@ -116,10 +118,10 @@
     <!-- 코드 작성 영역 -->
     <textarea id="codeEditor"></textarea>
 
-    <!-- input() 함수를 사용할 때 값을 미리 넣어두는 입력값(Stdin) 칸 -->
+    <!-- input() 함수 입력값 칸 (textarea로 수정하여 엔터 가능) -->
     <div class="input-section">
-        <div class="input-title">입력값 (input()에 전달될 데이터)</div>
-        <input type="text" id="stdinInput" placeholder="예: 홍길동 (입력이 여러 개면 엔터로 구분)">
+        <div class="input-title">입력값 (input()에 전달될 데이터 - 여러 개인 경우 엔터로 구분)</div>
+        <textarea id="stdinInput" placeholder="첫 번째 입력&#10;두 번째 입력"></textarea>
     </div>
 
     <!-- 버튼 그룹 -->
@@ -192,7 +194,7 @@
                     body: JSON.stringify({
                         language_id: 71, // Python (3.8.1)
                         source_code: code,
-                        stdin: stdinValue // input()에 들어갈 데이터를 함께 전송
+                        stdin: stdinValue
                     })
                 });
 
